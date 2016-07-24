@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- 宫格视图自定义属性 -->
+    <declare-styleable name="GridLayout">
+
+        <!-- 行列数 -->
+        <attr name="numColumns" format="integer"/>
+
+        <!-- 列宽 -->
+        <attr name="columnWidth" format="dimension"/>
+
+        <!-- 水平间距大小 -->
+        <attr name="horizontalSpace" format="dimension"/>
+
+        <!-- 垂直间距大小 -->
+        <attr name="verticalSpace" format="dimension"/>
+
+        <!-- 水平首尾是否添加间距 -->
+        <attr name="horizontalStartEndSpace" format="boolean"/>
+
+        <!-- 垂直首尾是否添加间距 -->
+        <attr name="verticalStartEndSpace" format="boolean"/>
+
+        <!-- 水平间隔区域填充颜色 -->
+        <attr name="horizontalSpaceColor" format="color"/>
+
+        <!-- 垂直间隔区域填充颜色 -->
+        <attr name="verticalSpaceColor" format="color"/>
+
+    </declare-styleable>
+
+</resources>
