@@ -10,6 +10,9 @@
         <!-- 列宽 -->
         <attr name="columnWidth" format="dimension"/>
 
+        <!-- 列宽百分比 -->
+        <attr name="columnPercent" format="string"/>
+
         <!-- 水平间距大小 -->
         <attr name="horizontalSpace" format="dimension"/>
 

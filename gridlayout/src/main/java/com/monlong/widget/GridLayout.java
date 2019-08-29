@@ -6,6 +6,7 @@ import android.database.DataSetObserver;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.text.TextUtils;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.view.View;
@@ -23,7 +24,7 @@ import android.widget.ListAdapter;
 public class GridLayout extends ViewGroup {
 
     private static final String TAG = "GridLayout";
-    private static final boolean DEBUG = true;
+    private static final boolean DEBUG = false;
 
     /**
      * 每行中所排列childView数量
@@ -34,6 +35,16 @@ public class GridLayout extends ViewGroup {
      * 单个childView所占宽度
      */
     private int mColumnWidth;
+
+    /**
+     * 每行childView之间的宽度占比
+     */
+    private float[] mColumnPercents;
+
+    /**
+     * 每行childView宽度占比总大小
+     */
+    private float mColumnPercentsTotal;
 
     /**
      * 水平方向childView间隔距离
@@ -120,7 +131,21 @@ public class GridLayout extends ViewGroup {
                 .GridLayout_horizontalStartEndSpace, false);
         mVerticalStartEndSpaceEnabled = a.getBoolean(R.styleable
                 .GridLayout_verticalStartEndSpace, false);
+        String columnsPercents = a.getString(R.styleable.GridLayout_columnPercent);
         a.recycle();
+
+        if (!TextUtils.isEmpty(columnsPercents)) {
+            String[] percents = columnsPercents.split(":");
+            if (percents.length != mNumColumns) {
+                throw new IllegalArgumentException("percent length not match the column length");
+            }
+
+            mColumnPercents = new float[mNumColumns];
+            for (int i = 0; i < percents.length; i++) {
+                mColumnPercents[i] = Float.valueOf(percents[i]);
+                mColumnPercentsTotal += mColumnPercents[i];
+            }
+        }
 
         mVerticalPaint = new Paint();
         mVerticalPaint.setAntiAlias(true);
@@ -186,12 +211,19 @@ public class GridLayout extends ViewGroup {
 
         // 子元素为空或隐藏数量统计，用于计算高度
         int childGoneCount = 0;
+        int childVisibleCount = 0;
 
         for (int i = 0; i < childCount; i++) {
             final View child = getChildAt(i);
             if (child.getVisibility() == View.GONE) {
                 childGoneCount++;
                 continue;
+            }
+
+            if (widthMode != MeasureSpec.UNSPECIFIED && mColumnPercents != null) {
+                float percent = mColumnPercents[childVisibleCount % mNumColumns];
+                childWidth = (int) ((widthSize - horizontalTotalSpacing)
+                        * (percent / mColumnPercentsTotal));
             }
 
             LayoutParams p = child.getLayoutParams();
@@ -214,6 +246,8 @@ public class GridLayout extends ViewGroup {
 
             child.measure(childWidthSpec, childHeightSpec);
             childHeight = child.getMeasuredHeight();
+
+            childVisibleCount++;
         }
 
         /**
@@ -279,11 +313,16 @@ public class GridLayout extends ViewGroup {
         final int topPadding = getPaddingTop();
 
         int childIndex = 0;
+        int columnWidth = 0;
         final int count = getChildCount();
         for (int i = 0; i < count; i++) {
             View child = getChildAt(i);
             if (child.getVisibility() == View.GONE) {
                 continue;
+            }
+
+            if (childIndex % mNumColumns == 0) {
+                columnWidth = 0;
             }
 
             int childWidth = child.getMeasuredWidth();
@@ -296,13 +335,14 @@ public class GridLayout extends ViewGroup {
              */
             int col = childIndex % mNumColumns;
             int row = childIndex / mNumColumns;
-            int left = col * childWidth + horizontalLeftSpacing(col) + leftPadding;
+            int left = columnWidth + horizontalLeftSpacing(col) + leftPadding;
             int top = row * childHeight + verticalTopSpacing(row) + topPadding;
             int right = left + childWidth;
             int bottom = top + childHeight;
 
             child.layout(left, top, right, bottom);
             childIndex++;
+            columnWidth += childWidth;
         }
     }
 
@@ -325,20 +365,27 @@ public class GridLayout extends ViewGroup {
      */
     private void drawHorizontalSpaceColor(Canvas canvas) {
         int childIndex = 0;
+        int columnWidth = 0;
         final int count = getChildCount();
         for (int i = 0; i < count; i++) {
             final View child = getChildAt(i);
             if (child != null && child.getVisibility() != GONE) {
+
+                if (childIndex % mNumColumns == 0) {
+                    columnWidth = 0;
+                }
 
                 int childWidth = child.getMeasuredWidth();
                 int childHeight = child.getMeasuredHeight();
 
                 int col = childIndex % mNumColumns;
                 int row = childIndex / mNumColumns;
-                int cleft = col * childWidth + horizontalLeftSpacing(col);
+                int cleft = columnWidth + horizontalLeftSpacing(col);
                 int ctop = row * childHeight + verticalTopSpacing(row);
                 int cright = cleft + childWidth;
                 int cbottom = ctop + childHeight;
+
+                columnWidth += childWidth;
 
                 // 为第一行子元素需判断是否绘制垂直顶部的间隔区域
                 boolean headerSpaceEnabled;
@@ -398,20 +445,27 @@ public class GridLayout extends ViewGroup {
      */
     private void drawVerticalSpaceColor(Canvas canvas) {
         int childIndex = 0;
+        int columnWidth = 0;
         final int count = getChildCount();
         for (int i = 0; i < count; i++) {
             final View child = getChildAt(i);
             if (child != null && child.getVisibility() != GONE) {
+
+                if (childIndex % mNumColumns == 0) {
+                    columnWidth = 0;
+                }
 
                 int childWidth = child.getMeasuredWidth();
                 int childHeight = child.getMeasuredHeight();
 
                 int col = childIndex % mNumColumns;
                 int row = childIndex / mNumColumns;
-                int cleft = col * childWidth + horizontalLeftSpacing(col);
+                int cleft = columnWidth + horizontalLeftSpacing(col);
                 int ctop = row * childHeight + verticalTopSpacing(row);
                 int cright = cleft + childWidth;
                 int cbottom = ctop + childHeight;
+
+                columnWidth += childWidth;
 
                 // 有两种情况需要考虑是否绘制元素顶部和底部填充颜色
                 // 1、当元素处于每一行最后一个元素
@@ -532,7 +586,7 @@ public class GridLayout extends ViewGroup {
     }
 
     public void setHorizontalSpaceColor(int horizontalSpaceColor) {
-        if (horizontalSpaceColor != horizontalSpaceColor) {
+        if (mHorizontalSpaceColor != horizontalSpaceColor) {
             mHorizontalSpaceColor = horizontalSpaceColor;
             requestLayoutIfNecessary();
         }
